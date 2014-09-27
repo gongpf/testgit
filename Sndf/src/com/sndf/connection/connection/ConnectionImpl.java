@@ -4,10 +4,6 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.AsynchronousCloseException;
-import java.nio.channels.ClosedByInterruptException;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.NotYetConnectedException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -19,37 +15,35 @@ import com.sndf.connection.serializable.SerializableMessageUtil;
 /**
  * Represents a tcp connection between a Client and a Server.
  */
-public class Connection
+public class ConnectionImpl implements IConnection
 {
     private static int generationId = 0;
     private int mConnectionId = generationId++;
 
     private ByteBuffer mReadBuffer;
     private ByteBuffer mWriteBuffer;
+    
+    private MessageDecoder mMessageDecoder;
 
     private SocketChannel mSocketChannel;
     private SelectionKey mSelectionKey;
 
     private boolean mIsConnected = false;
 
-    public Connection()
+    public ConnectionImpl()
     {
         mReadBuffer = ByteBuffer.allocate(1024);
         mWriteBuffer = ByteBuffer.allocate(1024);
+        mMessageDecoder = new MessageDecoder(new BytesBuffer());
     }
 
-    /**
-     * Returns the assigned ID.
-     */
+    @Override
     public int getId()
     {
         return mConnectionId;
     }
 
-    /**
-     * Returns true if this connection is connected to the remote end. Note that
-     * a connection can become disconnected at any time.
-     */
+    @Override
     public boolean isConnected()
     {
         return mIsConnected;
@@ -60,19 +54,8 @@ public class Connection
      * by the SocketAddress {@code remoteAddr} with the specified timeout. The
      * connecting method will block until the connection is established or an
      * error occurred.
-     * 
-     * @param remoteAddr
-     *            the address and port of the remote host to connect to.
-     * @param timeout
-     *            the timeout value in milliseconds or {@code 0} for an infinite
-     *            timeout.
-     * @throws IllegalArgumentException
-     *             if the given SocketAddress is invalid or not supported or the
-     *             timeout value is negative.
-     * @throws IOException
-     *             if the socket is already connected or an error occurs while
-     *             connecting.
      */
+    @Override
     public void connect(Selector selector, SocketAddress remoteAddress, int timeout) throws IOException
     {
         close();
@@ -107,6 +90,7 @@ public class Connection
      * This method just set some attributes and register OP_READ option of the new 
      * socketchannel to the selector.
      */
+    @Override
     public void onAccepted(Selector selector, SocketChannel socketChannel) throws IOException
     {
         mWriteBuffer.clear();
@@ -136,6 +120,7 @@ public class Connection
      * @throws IOException
      *             if an error occurs while closing the socket.
      */
+    @Override
     public void close()
     {
         if (null != mSocketChannel)
@@ -160,35 +145,30 @@ public class Connection
 
     /**
      * Reads message from this socket channel.
-     * 
      * @return the message actually read.
-     * @throws AsynchronousCloseException
-     *             if another thread closes the channel during the read.
-     * @throws NotYetConnectedException
-     *             if this channel is not yet connected.
-     * @throws ClosedByInterruptException
-     *             if another thread interrupts the calling thread while this
-     *             operation is in progress. The interrupt state of the calling
-     *             thread is set and the channel is closed.
-     * @throws ClosedChannelException
-     *             if this channel is closed.
-     * @throws IOException
-     *             if another I/O error occurs.
      */
+    @Override
     public IMessage readMessage() throws IOException
     {
+    	IMessage result = mMessageDecoder.readMessage();
+    	
+    	if (null != result)
+    	{
+    		return result;
+    	}
+    	
         if (null == mSocketChannel)
         {
             return null;
         }
-
+        
         try
         {
             ByteBuffer readBuffer = mReadBuffer;
-            BytesBuffer bytesBuffer = new BytesBuffer();
-            int bytesRead = mSocketChannel.read(readBuffer);
-            SocketAddress address = mSocketChannel.socket().getRemoteSocketAddress();
-
+            final BytesBuffer bytesBuffer = mMessageDecoder.getBytesBuffer();
+            SocketChannel socketChannel = mSocketChannel;
+            
+            int bytesRead = socketChannel.read(readBuffer);
             if (-1 == bytesRead)
             {
                 throw new IOException("the connection is closed");
@@ -204,10 +184,10 @@ public class Connection
                 }
 
                 readBuffer.clear();
-                bytesRead = mSocketChannel.read(readBuffer);
+                bytesRead = socketChannel.read(readBuffer);
             }
 
-            return SerializableMessageUtil.readMessage(bytesBuffer.getBytes(), address);
+            return mMessageDecoder.readMessage();
         }
         catch (IOException e)
         {
@@ -219,25 +199,11 @@ public class Connection
 
     /**
      * Writes message to this socket channel. The
-     * <p>
      * The call may block if other threads are also attempting to write to the
      * same channel.
-     * 
-     * @param msg
-     *            the message to be written.
-     * @throws AsynchronousCloseException
-     *             if another thread closes the channel during the write.
-     * @throws ClosedByInterruptException
-     *             if another thread interrupts the calling thread while this
-     *             operation is in progress. The interrupt state of the calling
-     *             thread is set and the channel is closed.
-     * @throws ClosedChannelException
-     *             if the channel was already closed.
-     * @throws IOException
-     *             if another I/O error occurs.
-     * @throws NotYetConnectedException
-     *             if this channel is not connected yet.
-     */
+     * @param msg the message to be written.
+    */
+    @Override
     public void sendMessage(IMessage msg)
     {
         if (null == mSocketChannel && !mIsConnected)
@@ -246,15 +212,20 @@ public class Connection
         }
 
         byte[] result = SerializableMessageUtil.wirteMessage(msg);
-
+        
         if (null == result)
         {
             return;
         }
+        
+        BytesBuffer bytesBuffer = new BytesBuffer();
+        bytesBuffer.appendInt(result.length);
+        bytesBuffer.appendBytes(result);
 
         ByteBuffer writeBuffer = mWriteBuffer;
         writeBuffer.clear();
-        writeBuffer.put(result);
+        
+        writeBuffer.put(bytesBuffer.getBytes());
         writeBuffer.flip();
 
         try
