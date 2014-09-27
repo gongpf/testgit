@@ -41,6 +41,31 @@ public class SerializableMessageUtil
      * 
      * @param byteArray
      *            the bytes stream to read.
+     */
+    public static IMessage readMessage(byte[] byteArray)
+    {
+        ByteArrayInputStream input = new ByteArrayInputStream(byteArray);
+        ObjectInputStream in;
+        IMessage message = null;
+
+        try
+        {
+            in = new ObjectInputStream(input);
+            message = (IMessage) in.readObject();
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+
+        return message;
+    }
+    
+    /**
+     * Reads an IMessage object from the bytes stream.
+     * 
+     * @param byteArray
+     *            the bytes stream to read.
      * @param address
      *            which the message is from.
      */

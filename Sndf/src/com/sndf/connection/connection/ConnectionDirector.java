@@ -32,7 +32,7 @@ public class ConnectionDirector implements CycleRunnable
 
     private Selector mSelector;
     
-    private final List<Connection> mConnectionList;
+    private final List<IConnection> mConnectionList;
 
     private ServerSocketChannel mServerSocketChannel;
     
@@ -112,7 +112,7 @@ public class ConnectionDirector implements CycleRunnable
             throw new RuntimeException("Error opening selector.", e);
         }
         
-        mConnectionList = new ArrayList<Connection>();
+        mConnectionList = new ArrayList<IConnection>();
     }
     
     /**
@@ -200,8 +200,8 @@ public class ConnectionDirector implements CycleRunnable
     @Override
     public void close()
     {
-        List<Connection> connectionList = this.mConnectionList;
-        for (Connection connection : connectionList)
+        List<IConnection> connectionList = this.mConnectionList;
+        for (IConnection connection : connectionList)
         {
             connection.close();
         }
@@ -284,7 +284,7 @@ public class ConnectionDirector implements CycleRunnable
      */
     public int connect(final SocketAddress remoteAddress, final int timeout)
     {
-        final Connection connection = new Connection();
+        final IConnection connection = new ConnectionImpl();
         DefaultExecutor.executeInNewThread(new Runnable()
         {
             @Override
@@ -344,7 +344,7 @@ public class ConnectionDirector implements CycleRunnable
     private void handleSelectionKey(SelectionKey key)
     {
         int ops = key.readyOps();
-        Connection connection = (Connection)key.attachment();
+        ConnectionImpl connection = (ConnectionImpl)key.attachment();
         
         if ((ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT)
         {
@@ -375,7 +375,7 @@ public class ConnectionDirector implements CycleRunnable
             SocketChannel socketChannel = serverSocketChannel.accept();
             if (null != socketChannel)
             {
-                Connection connection = new Connection();
+                ConnectionImpl connection = new ConnectionImpl();
                 connection.onAccepted(selector, socketChannel);
                 Message.obtain(mConnectionHandler, MSG_CONNECTION_CONNECTED, connection.getId(), 0).sendToTarget();
                 mConnectionList.add(connection);
@@ -393,7 +393,7 @@ public class ConnectionDirector implements CycleRunnable
      * this connection.
      * @param connection
      */
-    private void handleReadEvent(Connection connection)
+    private void handleReadEvent(ConnectionImpl connection)
     {
         IMessage message = null;
         try
@@ -408,10 +408,13 @@ public class ConnectionDirector implements CycleRunnable
             return ;
         }
 
-        if (null != message)
+        if (null == message)
         {
-            Message.obtain(mConnectionHandler, MSG_CONNECTION_RECEIVED, connection.getId(), 0, message).sendToTarget();
+        	return ;
         }
+        
+		Message.obtain(mConnectionHandler, MSG_CONNECTION_RECEIVED,	connection.getId(), 0, message).sendToTarget();
+		handleReadEvent(connection);
     }
     
     /**
@@ -420,9 +423,9 @@ public class ConnectionDirector implements CycleRunnable
      */
     public void sendMessageToAll(final IMessage msg)
     {
-        List<Connection> connectionList = this.mConnectionList;
+        List<IConnection> connectionList = this.mConnectionList;
         
-        for (Connection connection : connectionList)
+        for (IConnection connection : connectionList)
         {
             sendMessage(connection, msg);
         }
@@ -433,7 +436,7 @@ public class ConnectionDirector implements CycleRunnable
      * @param connection the connection to send.
      * @param msg the message to send.
      */
-    private void sendMessage(final Connection connection, final IMessage msg)
+    private void sendMessage(final IConnection connection, final IMessage msg)
     {
         if (null != connection)
         {
@@ -457,7 +460,7 @@ public class ConnectionDirector implements CycleRunnable
      */
     public void sendMessage(int connectionId, final IMessage msg)
     {
-        final Connection connection = findConnection(connectionId);
+        final IConnection connection = findConnection(connectionId);
         sendMessage(connection, msg);
     }
     
@@ -467,7 +470,7 @@ public class ConnectionDirector implements CycleRunnable
      */
     public void closeConnection(int connectionId)
     {
-        Connection connection = findConnection(connectionId);
+        IConnection connection = findConnection(connectionId);
 
         if (null != connection)
         {
@@ -507,11 +510,11 @@ public class ConnectionDirector implements CycleRunnable
      * @param connectionId the target connection id.
      * @return the target connection.
      */
-    private Connection findConnection(int connectionId)
+    private IConnection findConnection(int connectionId)
     {
-        List<Connection> connectionList = this.mConnectionList;
+        List<IConnection> connectionList = this.mConnectionList;
         
-        for (Connection connection : connectionList)
+        for (IConnection connection : connectionList)
         {
             if (connectionId == connection.getId())
             {

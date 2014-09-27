@@ -1,5 +1,7 @@
 package com.sndf.connection.serializable;
 
+import android.R.integer;
+
 
 public class BytesBuffer
 {
@@ -109,6 +111,18 @@ public class BytesBuffer
         byte[] bytes = BytesConverteUtil.int2bytes(value);
         appendBytes(bytes, 0, 4);
     }
+    
+    public int readInt(int index)
+    {
+    	int value = BytesConverteUtil.bytes2int(mBytes, index);
+    	cutBytes(index, 4);
+    	return value;
+    }
+    
+    public byte[] cutBytes(int index, int offset)
+    {
+    	return new byte[3];
+    }
 
     /**
      * append byte to the end of buffer.
@@ -147,6 +161,17 @@ public class BytesBuffer
         appendBytes(bytes, 0, 4);
     }
 
+    /**
+     * append bytes to the end of buffer.
+     * 
+     * @param value
+     *            of byte[]
+     */
+    public void appendBytes(byte[] bytes)
+    {
+    	appendBytes(bytes, 0, bytes.length);
+    }
+    
     /**
      * append bytes to the end of buffer.
      * 
