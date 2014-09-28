@@ -32,7 +32,7 @@ public class ConnectionImpl implements IConnection
 
     public ConnectionImpl(IMessageDecoderFactory factory)
     {
-        mWriteBuffer = ByteBuffer.allocate(1024 * 10);
+        mWriteBuffer = ByteBuffer.allocate(1024);
         mDecoderFactory = factory;
     }
     
