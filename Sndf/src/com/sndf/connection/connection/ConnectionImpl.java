@@ -20,21 +20,25 @@ public class ConnectionImpl implements IConnection
     private static int generationId = 0;
     private int mConnectionId = generationId++;
 
-    private ByteBuffer mReadBuffer;
     private ByteBuffer mWriteBuffer;
     
-    private MessageDecoder mMessageDecoder;
+    private final IMessageDecoderFactory mDecoderFactory;
+    private IMessageDecoder mMessageDecoder;
 
     private SocketChannel mSocketChannel;
     private SelectionKey mSelectionKey;
 
     private boolean mIsConnected = false;
 
+    public ConnectionImpl(IMessageDecoderFactory factory)
+    {
+        mWriteBuffer = ByteBuffer.allocate(1024 * 10);
+        mDecoderFactory = factory;
+    }
+    
     public ConnectionImpl()
     {
-        mReadBuffer = ByteBuffer.allocate(1024);
-        mWriteBuffer = ByteBuffer.allocate(1024);
-        mMessageDecoder = new MessageDecoder(new BytesBuffer());
+        this(new DefaultMessageDecoderFactory());
     }
 
     @Override
@@ -60,7 +64,6 @@ public class ConnectionImpl implements IConnection
     {
         close();
         mWriteBuffer.clear();
-        mReadBuffer.clear();
 
         try
         {
@@ -74,6 +77,7 @@ public class ConnectionImpl implements IConnection
             mSelectionKey = socketChannel.register(selector, SelectionKey.OP_READ);
             mSelectionKey.attach(this);
             mSocketChannel = socketChannel;
+            mMessageDecoder = mDecoderFactory.createMessageDecoder(socketChannel); 
 
             mIsConnected = true;
         }
@@ -94,8 +98,8 @@ public class ConnectionImpl implements IConnection
     public void onAccepted(Selector selector, SocketChannel socketChannel) throws IOException
     {
         mWriteBuffer.clear();
-        mReadBuffer.clear();
         mSocketChannel = socketChannel;
+        mMessageDecoder = mDecoderFactory.createMessageDecoder(socketChannel);
 
         try
         {
@@ -150,43 +154,13 @@ public class ConnectionImpl implements IConnection
     @Override
     public IMessage readMessage() throws IOException
     {
-    	IMessage result = mMessageDecoder.readMessage();
-    	
-    	if (null != result)
-    	{
-    		return result;
-    	}
-    	
-        if (null == mSocketChannel)
+        if (null == mMessageDecoder)
         {
             return null;
         }
-        
+
         try
         {
-            ByteBuffer readBuffer = mReadBuffer;
-            final BytesBuffer bytesBuffer = mMessageDecoder.getBytesBuffer();
-            SocketChannel socketChannel = mSocketChannel;
-            
-            int bytesRead = socketChannel.read(readBuffer);
-            if (-1 == bytesRead)
-            {
-                throw new IOException("the connection is closed");
-            }
-
-            while (bytesRead > 0)
-            {
-                readBuffer.flip();
-
-                while (readBuffer.hasRemaining())
-                {
-                    bytesBuffer.appendByte(readBuffer.get());
-                }
-
-                readBuffer.clear();
-                bytesRead = socketChannel.read(readBuffer);
-            }
-
             return mMessageDecoder.readMessage();
         }
         catch (IOException e)
@@ -196,7 +170,7 @@ public class ConnectionImpl implements IConnection
             throw e;
         }
     }
-
+    
     /**
      * Writes message to this socket channel. The
      * The call may block if other threads are also attempting to write to the
@@ -225,7 +199,7 @@ public class ConnectionImpl implements IConnection
         ByteBuffer writeBuffer = mWriteBuffer;
         writeBuffer.clear();
         
-        writeBuffer.put(bytesBuffer.getBytes());
+        writeBuffer.put(bytesBuffer.getBytes(), 0, bytesBuffer.getLength());
         writeBuffer.flip();
 
         try

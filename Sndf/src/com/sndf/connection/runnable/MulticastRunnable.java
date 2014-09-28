@@ -58,7 +58,7 @@ public class MulticastRunnable implements Runnable
 
                     InetSocketAddress socketAddress = (InetSocketAddress)msg.getRemoteAddress();
                     if (null != msg && null != socketAddress 
-                            && !NetUtil.isHostAddress(socketAddress.getAddress()))
+                            )//&& !NetUtil.isHostAddress(socketAddress.getAddress()))
                     {
                         Message.obtain(mHandler, DiscoverMsg.MSG_DISCOVER_HOST, msg).sendToTarget();
                     }

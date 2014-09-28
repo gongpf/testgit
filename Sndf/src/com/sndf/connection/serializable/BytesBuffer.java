@@ -114,14 +114,21 @@ public class BytesBuffer
     
     public int readInt(int index)
     {
-    	int value = BytesConverteUtil.bytes2int(mBytes, index);
-    	cutBytes(index, 4);
-    	return value;
+    	return BytesConverteUtil.bytes2int(mBytes, index);
     }
     
-    public byte[] cutBytes(int index, int offset)
+    public byte[] cutBytes(int index, int length)
     {
-    	return new byte[3];
+        byte[] cut = new byte[length];
+        System.arraycopy(mBytes, index, cut, 0, length);
+        
+        for(int i = index; i < (mSize - length); i++)
+        {
+            mBytes[i] = mBytes[i + length];
+        }
+        mSize -= length;
+
+    	return cut;
     }
 
     /**

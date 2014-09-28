@@ -2,13 +2,13 @@ package com.sndf.connection.base;
 
 import java.io.IOException;
 
-import com.sndf.connection.connection.ConnectionDirector;
+import com.sndf.connection.connection.ConnectionManager;
 import com.sndf.connection.discovery.HostDiscovererServer;
 
 public interface CycleRunnable extends Runnable
 {
     /**
-     * @see ConnectionDirector 
+     * @see ConnectionManager 
      * @see HostDiscovererServer 
      */
     public void doAction(int timeout) throws IOException;
@@ -23,7 +23,7 @@ public interface CycleRunnable extends Runnable
     public void stop ();
 
     /**
-     * @see ConnectionDirector 
+     * @see ConnectionManager 
      * @see HostDiscovererServer 
      */
     public void close ();
