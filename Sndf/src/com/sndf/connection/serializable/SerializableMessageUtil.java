@@ -19,21 +19,50 @@ public class SerializableMessageUtil
      */
     public static byte[] wirteMessage(IMessage message)
     {
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-        ObjectOutputStream out = null;
+        ByteArrayOutputStream bytesOutput = null;
+        ObjectOutputStream objectOutput = null;
+        byte[] result = null;
 
         try
         {
-            out = new ObjectOutputStream(output);
-            out.writeObject(message);
+            bytesOutput = new ByteArrayOutputStream();
+            objectOutput = new ObjectOutputStream(bytesOutput);
+
+            objectOutput.writeObject(message);
+            result = bytesOutput.toByteArray();
         }
         catch (IOException e)
         {
             e.printStackTrace();
-            return null;
         }
+        finally
+        {
+            if (null != objectOutput)
+            {
+                try
+                {
+                    objectOutput.close();
+                }
+                catch (IOException e)
+                {
+                    e.printStackTrace();
+                }
+            }
 
-        return output.toByteArray();
+            if (null != bytesOutput)
+            {
+                try
+                {
+                    bytesOutput.close();
+                }
+                catch (IOException e)
+                {
+                    e.printStackTrace();
+                }
+            }
+        }
+        
+        return result;
     }
 
     /**
@@ -44,18 +73,45 @@ public class SerializableMessageUtil
      */
     public static IMessage readMessage(byte[] byteArray)
     {
-        ByteArrayInputStream input = new ByteArrayInputStream(byteArray);
-        ObjectInputStream in;
+        ByteArrayInputStream input = null;
+        ObjectInputStream in = null;
         IMessage message = null;
 
         try
         {
+            input = new ByteArrayInputStream(byteArray);
             in = new ObjectInputStream(input);
             message = (IMessage) in.readObject();
         }
         catch (Exception e)
         {
             e.printStackTrace();
+        }
+        finally
+        {
+            if (null != in)
+            {
+                try
+                {
+                    in.close();
+                }
+                catch (IOException e)
+                {
+                    e.printStackTrace();
+                }
+            }
+            
+            if (null != input)
+            {
+                try
+                {
+                    input.close();
+                }
+                catch (IOException e)
+                {
+                    e.printStackTrace();
+                }
+            }
         }
 
         return message;
@@ -71,21 +127,13 @@ public class SerializableMessageUtil
      */
     public static IMessage readMessage(byte[] byteArray, SocketAddress address)
     {
-        ByteArrayInputStream input = new ByteArrayInputStream(byteArray);
-        ObjectInputStream in;
-        IMessage message = null;
-
-        try
+        IMessage result = readMessage(byteArray);
+        
+        if (null != result)
         {
-            in = new ObjectInputStream(input);
-            message = (IMessage) in.readObject();
-            message.setRemoteAddress(address);
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
+            result.setRemoteAddress(address);
         }
 
-        return message;
+        return result;
     }
 }
