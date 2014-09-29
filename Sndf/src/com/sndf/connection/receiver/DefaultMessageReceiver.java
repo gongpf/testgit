@@ -1,19 +1,18 @@
-package com.sndf.connection.connection;
+package com.sndf.connection.receiver;
 
 import java.io.IOException;
 import java.nio.channels.SocketChannel;
 
-import com.sndf.connection.base.Debug;
 import com.sndf.connection.message.IMessage;
 import com.sndf.connection.serializable.BytesBuffer;
 import com.sndf.connection.serializable.SerializableMessageUtil;
 
-public class DefaultMessageDecoder extends AbstractMessageDecoder 
+public class DefaultMessageReceiver extends AbstractMessageReceiver 
 {
     private final BytesBuffer mTempBuffer;
     private int mCureentLength = 0;
 
-    public DefaultMessageDecoder(SocketChannel socketChannel)
+    public DefaultMessageReceiver(SocketChannel socketChannel)
     {
         super(socketChannel);
         mTempBuffer = new BytesBuffer();
@@ -53,7 +52,7 @@ public class DefaultMessageDecoder extends AbstractMessageDecoder
     }
 
     @Override
-    public IMessage readMessage() throws IOException
+    public IMessage receiveMessage() throws IOException
     {
         readSocketBuffer();
 
@@ -91,8 +90,6 @@ public class DefaultMessageDecoder extends AbstractMessageDecoder
         mCureentLength = mTempBuffer.readInt(0);
         mTempBuffer.cutBytes(0, 4);
         
-        Debug.e("decode", "len:" + mCureentLength);
-
         return mCureentLength;
     }
 

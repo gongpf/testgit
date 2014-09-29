@@ -3,14 +3,17 @@ package com.sndf.connection.connection;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketAddress;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
 import com.sndf.connection.message.IMessage;
-import com.sndf.connection.serializable.BytesBuffer;
-import com.sndf.connection.serializable.SerializableMessageUtil;
+import com.sndf.connection.receiver.DefaultMessageReceiverFactory;
+import com.sndf.connection.receiver.IMessageReceiver;
+import com.sndf.connection.receiver.IMessageReceiverFactory;
+import com.sndf.connection.transmitter.DefaultMessageTransmitterFactory;
+import com.sndf.connection.transmitter.IMessageTransmitter;
+import com.sndf.connection.transmitter.IMessageTransmitterFactory;
 
 /**
  * Represents a tcp connection between a Client and a Server.
@@ -20,25 +23,26 @@ public class ConnectionImpl implements IConnection
     private static int generationId = 0;
     private int mConnectionId = generationId++;
 
-    private ByteBuffer mWriteBuffer;
-    
-    private final IMessageDecoderFactory mDecoderFactory;
-    private IMessageDecoder mMessageDecoder;
+    private final IMessageReceiverFactory mReceiverFactory;
+    private IMessageReceiver mMessageReceiver;
+
+    private final IMessageTransmitterFactory mTransmitterFactory;
+    private IMessageTransmitter mMessageTransmitter;
 
     private SocketChannel mSocketChannel;
     private SelectionKey mSelectionKey;
 
     private boolean mIsConnected = false;
 
-    public ConnectionImpl(IMessageDecoderFactory factory)
+    public ConnectionImpl(IMessageReceiverFactory receiverFactory, IMessageTransmitterFactory transmitterFactory)
     {
-        mWriteBuffer = ByteBuffer.allocate(1024);
-        mDecoderFactory = factory;
+        mReceiverFactory = receiverFactory;
+        mTransmitterFactory = transmitterFactory;
     }
     
     public ConnectionImpl()
     {
-        this(new DefaultMessageDecoderFactory());
+        this(new DefaultMessageReceiverFactory(), new DefaultMessageTransmitterFactory());
     }
 
     @Override
@@ -63,7 +67,6 @@ public class ConnectionImpl implements IConnection
     public void connect(Selector selector, SocketAddress remoteAddress, int timeout) throws IOException
     {
         close();
-        mWriteBuffer.clear();
 
         try
         {
@@ -77,7 +80,9 @@ public class ConnectionImpl implements IConnection
             mSelectionKey = socketChannel.register(selector, SelectionKey.OP_READ);
             mSelectionKey.attach(this);
             mSocketChannel = socketChannel;
-            mMessageDecoder = mDecoderFactory.createMessageDecoder(socketChannel); 
+
+            mMessageReceiver = mReceiverFactory.createMessageReceiver(socketChannel); 
+            mMessageTransmitter = mTransmitterFactory.createMessageTransmitter(socketChannel); 
 
             mIsConnected = true;
         }
@@ -97,15 +102,16 @@ public class ConnectionImpl implements IConnection
     @Override
     public void onAccepted(Selector selector, SocketChannel socketChannel) throws IOException
     {
-        mWriteBuffer.clear();
         mSocketChannel = socketChannel;
-        mMessageDecoder = mDecoderFactory.createMessageDecoder(socketChannel);
+        mMessageReceiver = mReceiverFactory.createMessageReceiver(socketChannel); 
+        mMessageTransmitter = mTransmitterFactory.createMessageTransmitter(socketChannel);
 
         try
         {
             socketChannel.configureBlocking(false);
             socketChannel.socket().setTcpNoDelay(true);
             socketChannel.socket().setKeepAlive(true);
+
             mSelectionKey = socketChannel.register(selector, SelectionKey.OP_READ);
             mSelectionKey.attach(this);
             mIsConnected = true;
@@ -154,14 +160,14 @@ public class ConnectionImpl implements IConnection
     @Override
     public IMessage readMessage() throws IOException
     {
-        if (null == mMessageDecoder)
+        if (null == mMessageReceiver)
         {
             return null;
         }
 
         try
         {
-            return mMessageDecoder.readMessage();
+            return mMessageReceiver.receiveMessage();
         }
         catch (IOException e)
         {
@@ -184,31 +190,10 @@ public class ConnectionImpl implements IConnection
         {
             return;
         }
-
-        byte[] result = SerializableMessageUtil.wirteMessage(msg);
         
-        if (null == result)
+        if (null != mMessageTransmitter)
         {
-            return;
-        }
-        
-        BytesBuffer bytesBuffer = new BytesBuffer();
-        bytesBuffer.appendInt(result.length);
-        bytesBuffer.appendBytes(result);
-
-        ByteBuffer writeBuffer = mWriteBuffer;
-        writeBuffer.clear();
-        
-        writeBuffer.put(bytesBuffer.getBytes(), 0, bytesBuffer.getLength());
-        writeBuffer.flip();
-
-        try
-        {
-            mSocketChannel.write(writeBuffer);
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
+            mMessageTransmitter.sendMessage(msg);
         }
     }
 }

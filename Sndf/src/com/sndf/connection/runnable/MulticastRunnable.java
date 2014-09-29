@@ -11,7 +11,6 @@ import android.os.Handler;
 import android.os.Message;
 
 import com.sndf.connection.base.Debug;
-import com.sndf.connection.base.NetUtil;
 import com.sndf.connection.discovery.DiscoverMsg;
 import com.sndf.connection.message.IMessage;
 import com.sndf.connection.serializable.SerializableMessageUtil;

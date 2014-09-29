@@ -1,6 +1,5 @@
 package com.sndf.connection.serializable;
 
-import android.R.integer;
 
 
 public class BytesBuffer
@@ -213,6 +212,11 @@ public class BytesBuffer
         appendBytes(vector.getBytes(), 0, vector.getLength());
 
         return this;
+    }
+    
+    public void clear()
+    {
+        mSize = 0;
     }
 
 }

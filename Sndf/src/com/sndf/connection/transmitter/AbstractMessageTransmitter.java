@@ -1,17 +1,18 @@
-package com.sndf.connection.connection;
+package com.sndf.connection.transmitter;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
-public abstract class AbstractMessageDecoder implements IMessageDecoder
+public abstract class AbstractMessageTransmitter implements IMessageTransmitter
 {
     protected final SocketChannel mSocketChannel;
-    
+
     protected final ByteBuffer mSocketBuffer;
 
-    public AbstractMessageDecoder(SocketChannel socketChannel)
+    public AbstractMessageTransmitter(SocketChannel socketChannel)
     {
         mSocketChannel = socketChannel;
         mSocketBuffer = ByteBuffer.allocate(1024);
     }
+
 }

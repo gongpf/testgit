@@ -405,10 +405,15 @@ public class ConnectionManager implements CycleRunnable
      */
     private void handleReadEvent(IConnection connection)
     {
-        IMessage message = null;
         try
         {
-            message = connection.readMessage();
+            IMessage message = connection.readMessage();
+
+            while(null != message)
+            {
+                Message.obtain(mConnectionHandler, MSG_CONNECTION_RECEIVED, connection.getId(), 0, message).sendToTarget();
+                message = connection.readMessage();
+            }
         }
         catch (IOException e)
         {
@@ -417,14 +422,6 @@ public class ConnectionManager implements CycleRunnable
             Message.obtain(mConnectionHandler, MSG_CONNECTION_DISCONNECTED, connection.getId(), 0).sendToTarget();
             return;
         }
-
-        if (null == message)
-        {
-            return;
-        }
-
-        Message.obtain(mConnectionHandler, MSG_CONNECTION_RECEIVED, connection.getId(), 0, message).sendToTarget();
-        handleReadEvent(connection);
     }
 
     /**
