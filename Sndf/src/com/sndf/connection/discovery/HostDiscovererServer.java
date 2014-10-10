@@ -8,14 +8,11 @@ import java.net.MulticastSocket;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
-import android.annotation.SuppressLint;
 import android.os.Handler;
 import android.os.Message;
 
-import com.sndf.connection.base.CycleRunnable;
+import com.sndf.connection.base.AbstractCycleRunnable;
 import com.sndf.connection.base.Debug;
 import com.sndf.connection.base.DefaultExecutor;
 import com.sndf.connection.message.IHandler;
@@ -23,19 +20,15 @@ import com.sndf.connection.message.IMessage;
 import com.sndf.connection.runnable.SendRunnable;
 import com.sndf.connection.serializable.SerializableMessageUtil;
 
-public class HostDiscovererServer implements CycleRunnable
+public class HostDiscovererServer extends AbstractCycleRunnable
 {
     private static final String TAG = "HostDiscovererServer";
 
-    private static Executor mDefaultExecutor = Executors.newFixedThreadPool(3);
     private IHandler mRequestHandler;
 
-    private DatagramPacket mData = null;
+    private DatagramPacket mData = new DatagramPacket(new byte[1024], 1024);
     private DatagramSocket mSocket = null;
 
-    private boolean mShutdown = true;
-
-    @SuppressLint("HandlerLeak")
     private Handler mHandler = new Handler()
     {
         @Override
@@ -146,42 +139,10 @@ public class HostDiscovererServer implements CycleRunnable
         }
     }
 
+    @Override
     public void start()
     {
-        if (!mShutdown)
-        {
-            throw new RuntimeException("the server is already running");
-        }
-
-        mShutdown = false;
-        mData = new DatagramPacket(new byte[1024], 1024);
-        mDefaultExecutor.execute(this);
-    }
-
-    @Override
-    public void run()
-    {
-        while(!mShutdown)
-        {
-            doAction(250);
-        }
-    }
-
-    @Override
-    public void stop()
-    {
-        if (mShutdown)
-        {
-            return ;
-        }
-        
-        close();
-        mShutdown = true;
-    }
-
-    @Override
-    public void close()
-    {
+        super.start();
     }
 
     @Override

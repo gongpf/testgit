@@ -11,23 +11,20 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
 import android.annotation.SuppressLint;
 import android.os.Handler;
 import android.os.Message;
 
-import com.sndf.connection.base.CycleRunnable;
+import com.sndf.connection.base.AbstractCycleRunnable;
 import com.sndf.connection.base.Debug;
 import com.sndf.connection.base.DefaultExecutor;
 import com.sndf.connection.message.IMessage;
 
 @SuppressLint("HandlerLeak")
-public class ConnectionManager implements CycleRunnable
+public class ConnectionManager extends AbstractCycleRunnable 
 {
     private static final String TAG = "ConnectionManager";
-    private static Executor mDefaultExecutor = Executors.newFixedThreadPool(10);
 
     private final Selector mSelector;
     private ServerSocketChannel mServerSocketChannel;
@@ -37,7 +34,6 @@ public class ConnectionManager implements CycleRunnable
     private Listener mListener;
 
     private int mEmptySelects = 0;
-    private boolean mShutdown = false;
     private Object mSelectorLock = new Object();
 
     private static final int MSG_CONNECTION_CONNECTED = 1;
@@ -164,41 +160,6 @@ public class ConnectionManager implements CycleRunnable
         }
 
         return null;
-    }
-
-    @Override
-    public void run()
-    {
-        while (!mShutdown)
-        {
-            try
-            {
-                doAction(250);
-            }
-            catch (IOException e)
-            {
-                e.printStackTrace();
-                stop();
-            }
-        }
-    }
-
-    @Override
-    public void start()
-    {
-        mDefaultExecutor.execute(this);
-    }
-
-    @Override
-    public void stop()
-    {
-        if (mShutdown)
-        {
-            return;
-        }
-
-        close();
-        mShutdown = true;
     }
 
     /**
