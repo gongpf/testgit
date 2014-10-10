@@ -3,6 +3,7 @@ package com.sndf.connection.sample;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.List;
 
 import android.content.Context;
 import android.os.Build;
@@ -124,12 +125,15 @@ public class Controller
         mDirector.setListener(new Listener()
         {
             @Override
-            public void onReceived(int connectionId, IMessage msg)
+            public void onReceived(int connectionId, List<IMessage> msg)
             {
-                if (msg instanceof ChatMessage)
+                for (IMessage message : msg)
                 {
-                    ChatMessage message = (ChatMessage)msg;
-                    mChatWidget.showText(message.getString(), true);
+                    if (message instanceof ChatMessage)
+                    {
+                        ChatMessage chatmessage = (ChatMessage) message;
+                        mChatWidget.showText(chatmessage.getString(), true);
+                    }
                 }
             }
             

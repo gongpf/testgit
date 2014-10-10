@@ -3,17 +3,20 @@ package com.sndf.connection.connection;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
+import java.util.List;
 
+import com.sndf.connection.decode.DefaultMessageDecoderFactory;
+import com.sndf.connection.decode.IStreamDecoderEx;
+import com.sndf.connection.decode.IStreamDecoderExFactory;
+import com.sndf.connection.encode.DefaultMessageEncoderFactory;
+import com.sndf.connection.encode.IStreamEncoder;
+import com.sndf.connection.encode.IStreamEncoderFactory;
 import com.sndf.connection.message.IMessage;
-import com.sndf.connection.receiver.DefaultMessageReceiverFactory;
-import com.sndf.connection.receiver.IMessageReceiver;
-import com.sndf.connection.receiver.IMessageReceiverFactory;
-import com.sndf.connection.transmitter.DefaultMessageTransmitterFactory;
-import com.sndf.connection.transmitter.IMessageTransmitter;
-import com.sndf.connection.transmitter.IMessageTransmitterFactory;
 
 /**
  * Represents a tcp connection between a Client and a Server.
@@ -23,26 +26,32 @@ public class ConnectionImpl implements IConnection
     private static int generationId = 0;
     private int mConnectionId = generationId++;
 
-    private final IMessageReceiverFactory mReceiverFactory;
-    private IMessageReceiver mMessageReceiver;
+    private final IStreamDecoderExFactory<IMessage> mDecoderFactory;
+    private IStreamDecoderEx<IMessage> mMessageDecoder;
 
-    private final IMessageTransmitterFactory mTransmitterFactory;
-    private IMessageTransmitter mMessageTransmitter;
+    private final IStreamEncoderFactory<IMessage> mEncoderFactory;
+    private IStreamEncoder<IMessage> mMessageEncoder;
 
     private SocketChannel mSocketChannel;
     private SelectionKey mSelectionKey;
+    
+    private ByteBuffer mReadBuffer;
+    private ByteBuffer mWriteBuffer;
 
     private boolean mIsConnected = false;
 
-    public ConnectionImpl(IMessageReceiverFactory receiverFactory, IMessageTransmitterFactory transmitterFactory)
+    public ConnectionImpl(IStreamDecoderExFactory<IMessage> decoderFactory, IStreamEncoderFactory<IMessage> encoderFactory)
     {
-        mReceiverFactory = receiverFactory;
-        mTransmitterFactory = transmitterFactory;
+        mReadBuffer = ByteBuffer.allocate(1024);
+        mWriteBuffer = ByteBuffer.allocate(1024);
+
+        mDecoderFactory = decoderFactory;
+        mEncoderFactory = encoderFactory;
     }
     
     public ConnectionImpl()
     {
-        this(new DefaultMessageReceiverFactory(), new DefaultMessageTransmitterFactory());
+        this(new DefaultMessageDecoderFactory(), new DefaultMessageEncoderFactory());
     }
 
     @Override
@@ -81,8 +90,8 @@ public class ConnectionImpl implements IConnection
             mSelectionKey.attach(this);
             mSocketChannel = socketChannel;
 
-            mMessageReceiver = mReceiverFactory.createMessageReceiver(socketChannel); 
-            mMessageTransmitter = mTransmitterFactory.createMessageTransmitter(socketChannel); 
+            mMessageDecoder = mDecoderFactory.createStreamDecoder(); 
+            mMessageEncoder = mEncoderFactory.createSteamEncoder();
 
             mIsConnected = true;
         }
@@ -103,8 +112,8 @@ public class ConnectionImpl implements IConnection
     public void onAccepted(Selector selector, SocketChannel socketChannel) throws IOException
     {
         mSocketChannel = socketChannel;
-        mMessageReceiver = mReceiverFactory.createMessageReceiver(socketChannel); 
-        mMessageTransmitter = mTransmitterFactory.createMessageTransmitter(socketChannel);
+        mMessageDecoder = mDecoderFactory.createStreamDecoder(); 
+        mMessageEncoder = mEncoderFactory.createSteamEncoder();
 
         try
         {
@@ -158,23 +167,44 @@ public class ConnectionImpl implements IConnection
      * @return the message actually read.
      */
     @Override
-    public IMessage readMessage() throws IOException
+    public List<IMessage> readMessage() throws IOException
     {
-        if (null == mMessageReceiver)
-        {
-            return null;
-        }
+        SocketChannel socketChannel = mSocketChannel;
+        List<IMessage> result = null;
 
-        try
+        while(true)
         {
-            return mMessageReceiver.receiveMessage();
+            mReadBuffer.clear();
+            int bytesRead = socketChannel.read(mReadBuffer);
+
+            if (bytesRead < 0)
+            {
+                close();
+                throw new IOException("the connection is closed");
+            }
+            else if (bytesRead > 0)
+            {
+                mReadBuffer.flip();
+                List<IMessage> msgList = mMessageDecoder.decode(mReadBuffer.array(), 0, mReadBuffer.remaining());
+
+                if (null == msgList || msgList.size() <= 0)
+                {
+                    break;
+                }
+
+                if (null == result)
+                {
+                    result = new ArrayList<IMessage>();
+                }
+                result.addAll(msgList);
+            }
+            else 
+            {
+                break;
+            }
         }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-            close();
-            throw e;
-        }
+        
+        return result;
     }
     
     /**
@@ -190,10 +220,19 @@ public class ConnectionImpl implements IConnection
         {
             return;
         }
-        
-        if (null != mMessageTransmitter)
+
+        ByteBuffer writeBuffer = mWriteBuffer;
+
+        try
         {
-            mMessageTransmitter.sendMessage(msg);
+            if (mMessageEncoder.encode(msg, writeBuffer))
+            {
+                mSocketChannel.write(writeBuffer);
+            }
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.sndf.connection.connection;
 
+import java.util.List;
+
 import com.sndf.connection.message.IMessage;
 
 public interface Listener
@@ -26,5 +28,5 @@ public interface Listener
      * Called when an object has been received from the remote end of the
      * connection. 
      * */
-    public void onReceived(int connectionId, IMessage msg);
+    public void onReceived(int connectionId, List<IMessage> msg);
 }

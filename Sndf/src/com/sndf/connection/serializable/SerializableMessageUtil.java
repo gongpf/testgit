@@ -65,13 +65,18 @@ public class SerializableMessageUtil
         return result;
     }
 
+    public static IMessage readMessage(byte[] byteArray)
+    {
+        return readMessage(byteArray, 0, byteArray.length);
+    }
+
     /**
      * Reads an IMessage object from the bytes stream.
      * 
      * @param byteArray
      *            the bytes stream to read.
      */
-    public static IMessage readMessage(byte[] byteArray)
+    public static IMessage readMessage(byte[] byteArray, int index, int length)
     {
         ByteArrayInputStream input = null;
         ObjectInputStream in = null;
@@ -79,7 +84,7 @@ public class SerializableMessageUtil
 
         try
         {
-            input = new ByteArrayInputStream(byteArray);
+            input = new ByteArrayInputStream(byteArray, index, length);
             in = new ObjectInputStream(input);
             message = (IMessage) in.readObject();
         }

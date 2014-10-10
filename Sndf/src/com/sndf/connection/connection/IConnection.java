@@ -8,6 +8,7 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NotYetConnectedException;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.util.List;
 
 import com.sndf.connection.message.IMessage;
 
@@ -80,7 +81,7 @@ public interface IConnection
      * @throws IOException
      *             if another I/O error occurs.
      */
-    public IMessage readMessage() throws IOException;
+    public List<IMessage> readMessage() throws IOException;
 
     /**
      * Writes message to this socket channel. The

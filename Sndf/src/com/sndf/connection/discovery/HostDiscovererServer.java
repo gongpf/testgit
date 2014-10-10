@@ -9,6 +9,7 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 
+import android.annotation.SuppressLint;
 import android.os.Handler;
 import android.os.Message;
 
@@ -29,6 +30,7 @@ public class HostDiscovererServer extends AbstractCycleRunnable
     private DatagramPacket mData = new DatagramPacket(new byte[1024], 1024);
     private DatagramSocket mSocket = null;
 
+    @SuppressLint("HandlerLeak")
     private Handler mHandler = new Handler()
     {
         @Override

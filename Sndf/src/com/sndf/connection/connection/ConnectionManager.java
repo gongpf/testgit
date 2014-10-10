@@ -43,6 +43,7 @@ public class ConnectionManager extends AbstractCycleRunnable
 
     private Handler mConnectionHandler = new Handler()
     {
+        @SuppressWarnings("unchecked")
         @Override
         public void handleMessage(Message msg)
         {
@@ -79,7 +80,7 @@ public class ConnectionManager extends AbstractCycleRunnable
                     {
                         if (null != mListener)
                         {
-                            mListener.onReceived(msg.arg1, (IMessage) msg.obj);
+                            mListener.onReceived(msg.arg1, (List<IMessage>) msg.obj);
                         }
                     }
                     break;
@@ -368,12 +369,11 @@ public class ConnectionManager extends AbstractCycleRunnable
     {
         try
         {
-            IMessage message = connection.readMessage();
+            List<IMessage> messageList = connection.readMessage();
 
-            while(null != message)
+            if (null != messageList && messageList.size() > 0)
             {
-                Message.obtain(mConnectionHandler, MSG_CONNECTION_RECEIVED, connection.getId(), 0, message).sendToTarget();
-                message = connection.readMessage();
+                Message.obtain(mConnectionHandler, MSG_CONNECTION_RECEIVED, connection.getId(), 0, messageList).sendToTarget();
             }
         }
         catch (IOException e)
