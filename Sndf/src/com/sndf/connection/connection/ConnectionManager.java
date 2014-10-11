@@ -326,6 +326,11 @@ public class ConnectionManager extends AbstractCycleRunnable
         {
             handleReadEvent(connection);
         }
+        
+        if ((ops & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE)
+        {
+            handleWriteEvent(connection);
+        }
     }
 
     /**
@@ -362,8 +367,6 @@ public class ConnectionManager extends AbstractCycleRunnable
     /**
      * Handle the read event, if catch a IOException remove and close this
      * connection.
-     * 
-     * @param connection
      */
     private void handleReadEvent(IConnection connection)
     {
@@ -379,6 +382,27 @@ public class ConnectionManager extends AbstractCycleRunnable
         catch (IOException e)
         {
             e.printStackTrace();
+            connection.close();
+            mConnectionList.remove(connection);
+            Message.obtain(mConnectionHandler, MSG_CONNECTION_DISCONNECTED, connection.getId(), 0).sendToTarget();
+            return;
+        }
+    }
+    
+    /**
+     * Handle the write event, if catch a IOException remove and close this
+     * connection.
+     */
+    private void handleWriteEvent(IConnection connection)
+    {
+        try
+        {
+        	connection.write();
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+            connection.close();
             mConnectionList.remove(connection);
             Message.obtain(mConnectionHandler, MSG_CONNECTION_DISCONNECTED, connection.getId(), 0).sendToTarget();
             return;

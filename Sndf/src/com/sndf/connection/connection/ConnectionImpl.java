@@ -37,6 +37,8 @@ public class ConnectionImpl implements IConnection
     
     private ByteBuffer mReadBuffer;
     private ByteBuffer mWriteBuffer;
+    
+    private Object mWriteLock = new Object();
 
     private boolean mIsConnected = false;
 
@@ -44,6 +46,9 @@ public class ConnectionImpl implements IConnection
     {
         mReadBuffer = ByteBuffer.allocate(1024);
         mWriteBuffer = ByteBuffer.allocate(1024);
+        
+        mReadBuffer.clear();
+        mWriteBuffer.clear();
 
         mDecoderFactory = decoderFactory;
         mEncoderFactory = encoderFactory;
@@ -216,23 +221,69 @@ public class ConnectionImpl implements IConnection
     @Override
     public void sendMessage(IMessage msg)
     {
-        if (null == mSocketChannel && !mIsConnected)
+    	SocketChannel socketChannel = mSocketChannel;
+    	
+        if (null == socketChannel && !mIsConnected)
         {
             return;
         }
 
+        byte[] bytes = mMessageEncoder.encode(msg);
+        
+        if (null == bytes || 0 == bytes.length)
+        {
+        	return ;
+        }
+        
         ByteBuffer writeBuffer = mWriteBuffer;
+        writeBuffer.put(bytes);
 
         try
         {
-            if (mMessageEncoder.encode(msg, writeBuffer))
-            {
-                mSocketChannel.write(writeBuffer);
-            }
+        	if (!writeToSocket())
+        	{
+        		mSelectionKey.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+        	}
         }
         catch (IOException e)
         {
             e.printStackTrace();
         }
+    }
+    
+    @Override
+    public void write() throws IOException 
+    {
+    	synchronized (mWriteLock) 
+    	{
+    		if (writeToSocket())
+    		{
+    			mSelectionKey.interestOps(SelectionKey.OP_READ);
+    		}
+		}
+    }
+    
+    private boolean writeToSocket() throws IOException
+    {
+    	SocketChannel socketChannel = mSocketChannel;
+    	
+        if (null == socketChannel && !mIsConnected)
+        {
+        	throw new RuntimeException("Connection is closed");
+        }
+        
+        ByteBuffer buffer = mWriteBuffer;
+        buffer.flip();
+        
+        while(buffer.hasRemaining())
+        {
+        	if (0 == socketChannel.write(buffer))
+        	{
+        		break;
+        	}
+        }
+        
+        buffer.compact();
+        return 0 == buffer.position();
     }
 }

@@ -105,4 +105,12 @@ public interface IConnection
      *             if this channel is not connected yet.
      */
     public void sendMessage(IMessage msg);
+    
+    /**
+     * Writes the buffer to this socket channel. The
+     * <p>
+     * The call may block if other threads are also attempting to write to the
+     * same channel.
+     */
+    public void write() throws IOException;
 }

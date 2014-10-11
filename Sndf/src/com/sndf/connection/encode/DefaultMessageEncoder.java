@@ -1,27 +1,27 @@
 package com.sndf.connection.encode;
 
-import java.nio.ByteBuffer;
-
 import com.sndf.connection.message.IMessage;
+import com.sndf.connection.serializable.BytesConverteUtil;
 import com.sndf.connection.serializable.SerializableMessageUtil;
 
 public class DefaultMessageEncoder implements IStreamEncoder<IMessage>
 {
     @Override
-    public boolean encode(IMessage msg, ByteBuffer toBuffer)
+    public byte[] encode(IMessage msg)
     {
-        byte[] result = SerializableMessageUtil.wirteMessage(msg);
+        byte[] bytes = SerializableMessageUtil.wirteMessage(msg);
         
-        if (null == result)
+        if (null == bytes || 0 == bytes.length)
         {
-            return false;
+            return null;
         }
-
-        toBuffer.clear();
-        toBuffer.putInt(result.length);
-        toBuffer.put(result);
-        toBuffer.flip();
         
-        return true;
+        byte[] length = BytesConverteUtil.int2bytesOrderBy(bytes.length);
+        byte[] result = new byte[length.length + bytes.length];
+        
+        System.arraycopy(length, 0, result, 0, length.length);
+        System.arraycopy(bytes, 0, result, length.length, bytes.length);
+        
+        return result;
     }
 }
